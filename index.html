@@ -6,9 +6,9 @@
 <title>Turnos de peluquería</title>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f4f6fa;--surf:#fff;--ink:#14213d;--mut:#55627d;--line:#d5dbe8;--acc:#d7263d;--blue:#1b4f9c;--on:#fff;--soft:#e6ebf5;--bad:#b4231a;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1526;--surf:#162036;--ink:#eef2fb;--mut:#9fb0cf;--line:#2b3b5c;--acc:#ff5468;--blue:#78a8f5;--on:#fff;--soft:#1d2a47;--bad:#ff8a80;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0d1526;--surf:#162036;--ink:#eef2fb;--mut:#9fb0cf;--line:#2b3b5c;--acc:#ff5468;--blue:#78a8f5;--on:#fff;--soft:#1d2a47;--bad:#ff8a80;color-scheme:dark}
+:root{--bg:#f4f6fa;--surf:#fff;--ink:#14213d;--mut:#55627d;--line:#d5dbe8;--acc:#5b6678;--blue:#1b4f9c;--on:#fff;--soft:#e6ebf5;--bad:#b4231a;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1526;--surf:#162036;--ink:#eef2fb;--mut:#9fb0cf;--line:#2b3b5c;--acc:#a7b0c0;--blue:#78a8f5;--on:#0d1526;--soft:#1d2a47;--bad:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0d1526;--surf:#162036;--ink:#eef2fb;--mut:#9fb0cf;--line:#2b3b5c;--acc:#a7b0c0;--blue:#78a8f5;--on:#0d1526;--soft:#1d2a47;--bad:#ff8a80;color-scheme:dark}
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:400 16px/1.5 Archivo,system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100%}
@@ -167,7 +167,7 @@ async function descargar(){
   g.fillStyle='#f4f6fa';g.fillRect(0,0,W,H);
   g.fillStyle='#fff';g.fillRect(40,40,640,1100);
   g.save();g.beginPath();g.rect(42,42,636,30);g.clip();
-  const col=['#d7263d','#fff','#1b4f9c','#fff'];
+  const col=['#5b6678','#fff','#1b4f9c','#fff'];
   for(let i=-2;i<24;i++){const x0=42+i*36;g.fillStyle=col[((i%4)+4)%4];g.beginPath();g.moveTo(x0,72);g.lineTo(x0+36,72);g.lineTo(x0+66,42);g.lineTo(x0+30,42);g.closePath();g.fill()}
   g.restore();
   g.strokeStyle='#14213d';g.lineWidth=4;g.strokeRect(40,40,640,1100);
@@ -175,7 +175,7 @@ async function descargar(){
   if(logo){g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(logo,W/2-55,92,110,110)}
   else{g.fillStyle='#14213d';g.font='800 46px '+F;g.fillText(fit(NEGOCIO,560),W/2,160)}
   g.fillStyle='#55627d';g.font='600 20px '+F;g.fillText('COMPROBANTE DE TURNO',W/2,244);
-  g.fillStyle='#d7263d';g.font='700 28px '+F;g.fillText('¡Turno confirmado!',W/2,290);
+  g.fillStyle='#5b6678';g.font='700 28px '+F;g.fillText('¡Turno confirmado!',W/2,290);
   g.strokeStyle='#d5dbe8';g.lineWidth=2;g.beginPath();g.moveTo(90,318);g.lineTo(630,318);g.stroke();
   const rows=[['SERVICIO',b.service],['FECHA',fdate(b.date)],['HORARIO',b.time+' hs'],['A NOMBRE DE',b.name]];
   let y=372;
