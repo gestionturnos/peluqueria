@@ -37,6 +37,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
 .go{width:100%;border:0;background:var(--acc);color:var(--on);font:700 17px Archivo,system-ui,sans-serif;border-radius:10px;padding:15px;cursor:pointer;margin-top:6px}
 .go:disabled{opacity:.5}
 .card{background:var(--surf);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card{flex-wrap:wrap}
+.wa{border:2px solid var(--blue);color:var(--blue);border-radius:8px;padding:6px 10px;font:600 14px Archivo,system-ui,sans-serif;text-decoration:none}
 .card b{display:block;font-size:17px}
 .sm{font-size:14px;color:var(--mut)}
 .x{border:2px solid var(--line);background:none;color:var(--bad);border-radius:8px;padding:6px 10px;font:600 14px Archivo,system-ui,sans-serif;cursor:pointer}
@@ -133,7 +135,7 @@ function vRes(){
   if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.')}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button></div>`;
   const A=act();if(!A.length)return '<p class="note">Por ahora no hay servicios disponibles. Consultá por WhatsApp.</p>';const sv=svc(),dur=sv?sv.dur:30,D=days();
   let h=`<h2><i>1</i>Servicio</h2><div class="chips">${A.map(s=>`<button class="chip ${s.id===st.s?'on':''}" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}</div>`;
-  if(sv)h+=`<h2><i>2</i>Día</h2><div class="chips">${D.map(d=>{const x=new Date(d+'T12:00:00');return `<button class="chip ${d===st.date?'on':''}" onclick="pick('date','${d}')">${esc(x.toLocaleDateString('es-AR',{weekday:'short'}))}<small>${x.getDate()}/${x.getMonth()+1}</small></button>`}).join('')}</div>`;
+  if(sv)h+=`<h2><i>2</i>Día</h2><div class="chips">${D.map(d=>{const x=new Date(d+'T12:00:00');return `<button class="chip ${d===st.date?'on':''}" onclick="pick('date','${d}')"><span style="text-transform:capitalize">${esc(x.toLocaleDateString('es-AR',{weekday:'long'}))}</span><small>${x.getDate()}/${x.getMonth()+1}</small></button>`}).join('')}</div>`;
   if(sv&&st.date){
     h+=`<h2><i>3</i>Horario</h2><div class="grid">`;
     const sc=sch(st.date);for(let m=sc?mins(sc.from):0;sc&&m<mins(sc.to);m+=STEP)if(!brk(sc,m))h+=`<button class="chip ${m===st.time?'on':''}" ${free(st.date,m,dur)?'':'disabled'} onclick="pick('time',${m})">${hm(m)}</button>`;
@@ -146,13 +148,15 @@ function vRes(){
   }else if(msg)h+=`<p class="err">${esc(msg)}</p>`;
   return h;
 }
+function waNum(p){let d=String(p).replace(/\D/g,'');if(d.startsWith('54'))return d;d=d.replace(/^0+/,'');return d.length===10?'549'+d:'54'+d}
+function waLink(b){const t=new Date();t.setDate(t.getDate()+1);const dia=b.date===iso(new Date())?'hoy':b.date===iso(t)?'mañana':'el '+fdate(b.date);return 'https://wa.me/'+waNum(b.phone)+'?text='+encodeURIComponent('Hola '+b.name+'! Te recordamos tu turno de '+b.service+' '+dia+' a las '+b.time+' hs. ¡Te esperamos! Si no podés venir, avisanos por acá.')}
 function vAdm(){
   const today=iso(new Date()),L=books.filter(b=>b.date>=today).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   if(!L.length)return '<p class="note">No hay turnos próximos. Cuando alguien reserve, va a aparecer acá. Para cargar uno vos, usá la pestaña “Reservar”.</p>';
-  let h='',cur='';
+  let h='<p class="sm">Tocá “Recordar” y se abre WhatsApp con el mensaje listo para enviar.</p>',cur='';
   L.forEach(b=>{
-    if(b.date!==cur){cur=b.date;h+=`<h3 class="day">${esc(fdate(b.date))}</h3>`}
-    h+=`<div class="card"><div><b>${esc(b.time)} ${esc(b.name)}</b><span class="sm">${esc(b.service)}, ${b.dur} min, <a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a></span></div><button class="x" onclick="cancel('${esc(b.id)}')">Cancelar</button></div>`;
+    if(b.date!==cur){cur=b.date;h+=`<h3 class="day">${esc(fdate(b.date))}${b.date===today?' (hoy)':''}</h3>`}
+    h+=`<div class="card"><div><b>${esc(b.time)} ${esc(b.name)}</b><span class="sm">${esc(b.service)}, ${b.dur} min, <a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a></span></div><div class="row" style="flex:none"><a class="wa" href="${waLink(b)}" target="_blank" rel="noopener">Recordar</a><button class="x" onclick="cancel('${esc(b.id)}')">Cancelar</button></div></div>`;
   });
   return h;
 }
@@ -177,7 +181,7 @@ function vCfg(){
   <div class="row"><label class="sw"><input type="checkbox" ${s.on?'checked':''} onchange="upd(()=>cfg.services[${i}].on=this.checked)"> Habilitado</label><button class="x" onclick="if(confirm('¿Eliminar este servicio?'))upd(()=>cfg.services.splice(${i},1))">Eliminar</button></div></div>`});
   h+=`<button class="go" onclick="upd(()=>cfg.services.push({id:'s'+Date.now().toString(36),name:'Nuevo servicio',dur:30,price:0,pt:'fijo',on:true}))">Agregar servicio</button><h2>Días y horarios de trabajo</h2>`;
   const O=[1,2,3,4,5,6,0],tf=(k,l)=>`<label>${l}<input type="time" value="${cw[k]}" onchange="cw.${k}=this.value"></label>`;
-  h+=`<p class="sm">1. Tildá los días (o usá un atajo). 2. Elegí el horario. 3. Tocá “Aplicar”.</p><div class="chips">${O.map(d=>`<button class="chip ${selD.includes(d)?'on':''}" onclick="togD(${d})">${DN[d].slice(0,3)}<small>${cfg.week[d].on?'Abierto':'Cerrado'}</small></button>`).join('')}</div>
+  h+=`<p class="sm">1. Tildá los días (o usá un atajo). 2. Elegí el horario. 3. Tocá “Aplicar”.</p><div class="chips">${O.map(d=>`<button class="chip ${selD.includes(d)?'on':''}" onclick="togD(${d})">${DN[d]}<small>${cfg.week[d].on?'Abierto':'Cerrado'}</small></button>`).join('')}</div>
   <div class="chips" style="margin-top:8px"><button class="x" onclick="rangeD(1,5)">Lun a Vie</button><button class="x" onclick="rangeD(1,6)">Lun a Sáb</button><button class="x" onclick="rangeD(2,6)">Mar a Sáb</button></div>
   <div class="card col" style="margin-top:12px"><div class="row">${tf('from','Abre')}${tf('to','Cierra')}</div><div class="row">${tf('b1','Descanso desde (opcional)')}${tf('b2','Descanso hasta')}</div>
   <div class="row"><button class="go" style="margin:0" onclick="applyD(true)">Aplicar a los días tildados</button><button class="x" onclick="applyD(false)">Cerrar los días tildados</button></div></div>
