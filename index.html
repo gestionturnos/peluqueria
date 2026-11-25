@@ -78,6 +78,7 @@ const OWNER='tu.app.de.turnos@gmail.com';
 const CFG={apiKey:'AIzaSyC8L0kuqtRrJbNE6KOY8BkzXB9BUhvq6g0',authDomain:'gestion-de-turnos-755f8.firebaseapp.com',projectId:'gestion-de-turnos-755f8',appId:'1:955811393083:web:aeebf35a69882f70cf761e'};
 // =====================================================================================
 let seen=null,alertMsg='';
+let selD=[],cw={from:'09:00',to:'19:00',b1:'',b2:''};
 let FB=null,auth=null,unsubB=null,db=null,uid=null,admin=false,ready=false,tab='res',slots={},books=[],msg='',done=null,busy=false;
 let st={s:null,date:null,time:null,nm:'',ph:''};
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -87,6 +88,7 @@ const mins=t=>+t.slice(0,2)*60+ +t.slice(3,5);
 const fdate=d=>{const[y,m,x]=d.split('-');return new Date(+y,+m-1,+x).toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})};
 const closed=d=>(cfg.closures||[]).some(c=>d>=c.from&&d<=c.to);
 function sch(d){const w=cfg.week[new Date(d+'T12:00:00').getDay()];return(!w||!w.on||closed(d)||mins(w.to)<=mins(w.from))?null:w}
+const brk=(w,m)=>{const b1=w.b1?mins(w.b1):0,b2=w.b2?mins(w.b2):0;return b2>b1&&m<b2&&m+STEP>b1};
 const act=()=>cfg.services.filter(x=>x.on);
 const svc=()=>act().find(x=>x.id===st.s);
 const ptxt=s=>s.pt==='consultar'?'A consultar':s.price>0?(s.pt==='desde'?'Desde ':'')+'$'+s.price.toLocaleString('es-AR'):'';
@@ -100,7 +102,7 @@ function free(date,m,dur){
   return true;
 }
 function setTab(t){tab=t;done=null;render()}
-function pick(k,v){st[k]=v;if(k!=='time')st.time=null;msg='';render()}
+function pick(k,v){st[k]=st[k]===v?null:v;if(k!=='time')st.time=null;msg='';render()}
 async function book(){
   const sv=svc();if(!sv)return;const dur=sv.dur;
   if(!st.nm.trim()||!st.ph.trim()){msg='Completá tu nombre y tu teléfono.';return render()}
@@ -129,15 +131,15 @@ async function cancel(id){
 }
 function vRes(){
   if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.')}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button></div>`;
-  const A=act();if(!A.some(x=>x.id===st.s))st.s=A[0]?A[0].id:null;const sv=svc();if(!sv)return '<p class="note">Por ahora no hay servicios disponibles. Consultá por WhatsApp.</p>';const dur=sv.dur,D=days();
-  let h=`<h2><i>1</i>Servicio</h2><div class="chips">${A.map(s=>`<button class="chip ${s.id===st.s?'on':''}" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}</div>
-  <h2><i>2</i>Día</h2><div class="chips">${D.map(d=>{const x=new Date(d+'T12:00:00');return `<button class="chip ${d===st.date?'on':''}" onclick="pick('date','${d}')">${esc(x.toLocaleDateString('es-AR',{weekday:'short'}))}<small>${x.getDate()}/${x.getMonth()+1}</small></button>`}).join('')}</div>`;
-  if(st.date){
+  const A=act();if(!A.length)return '<p class="note">Por ahora no hay servicios disponibles. Consultá por WhatsApp.</p>';const sv=svc(),dur=sv?sv.dur:30,D=days();
+  let h=`<h2><i>1</i>Servicio</h2><div class="chips">${A.map(s=>`<button class="chip ${s.id===st.s?'on':''}" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}</div>`;
+  if(sv)h+=`<h2><i>2</i>Día</h2><div class="chips">${D.map(d=>{const x=new Date(d+'T12:00:00');return `<button class="chip ${d===st.date?'on':''}" onclick="pick('date','${d}')">${esc(x.toLocaleDateString('es-AR',{weekday:'short'}))}<small>${x.getDate()}/${x.getMonth()+1}</small></button>`}).join('')}</div>`;
+  if(sv&&st.date){
     h+=`<h2><i>3</i>Horario</h2><div class="grid">`;
-    const sc=sch(st.date);for(let m=sc?mins(sc.from):0;sc&&m<mins(sc.to);m+=STEP)h+=`<button class="chip ${m===st.time?'on':''}" ${free(st.date,m,dur)?'':'disabled'} onclick="pick('time',${m})">${hm(m)}</button>`;
+    const sc=sch(st.date);for(let m=sc?mins(sc.from):0;sc&&m<mins(sc.to);m+=STEP)if(!brk(sc,m))h+=`<button class="chip ${m===st.time?'on':''}" ${free(st.date,m,dur)?'':'disabled'} onclick="pick('time',${m})">${hm(m)}</button>`;
     h+=`</div>`;
   }
-  if(st.time!==null){
+  if(sv&&st.date&&st.time!==null){
     h+=`<h2><i>4</i>Tus datos</h2><label>Nombre<input value="${esc(st.nm)}" oninput="st.nm=this.value" autocomplete="name"></label>
     <label>Teléfono<input type="tel" inputmode="numeric" maxlength="15" placeholder="Solo números, sin espacios" value="${esc(st.ph)}" oninput="this.value=this.value.replace(/[^0-9]/g,'');st.ph=this.value" autocomplete="tel"></label>
     <p class="err">${esc(msg)}</p><button class="go" ${busy?'disabled':''} onclick="book()">${busy?'Guardando…':'Confirmar turno'}</button>`;
@@ -156,6 +158,14 @@ function vAdm(){
 }
 function save(){FB.setDoc(FB.doc(db,'config','main'),cfg).catch(()=>alert('No se pudo guardar.'))}
 function upd(f){f();save();render()}
+function togD(d){selD=selD.includes(d)?selD.filter(x=>x!==d):[...selD,d];render()}
+function rangeD(a,b){selD=[];for(let d=a;;d=(d+1)%7){selD.push(d);if(d===b)break}render()}
+function applyD(on){
+  if(!selD.length)return alert('Tildá al menos un día.');
+  if(on&&mins(cw.to)<=mins(cw.from))return alert('El horario de cierre tiene que ser después del de apertura.');
+  if(on&&(cw.b1||cw.b2)&&(!cw.b1||!cw.b2||mins(cw.b2)<=mins(cw.b1)))return alert('Revisá el descanso: completá desde y hasta.');
+  upd(()=>{selD.forEach(d=>{cfg.week[d]=on?{on:true,from:cw.from,to:cw.to,b1:cw.b1,b2:cw.b2}:{...cfg.week[d],on:false}});selD=[]});
+}
 function addClose(){const f=$('#cf').value,t=$('#ct').value||f;if(!f||t<f)return alert('Elegí fechas válidas.');upd(()=>cfg.closures.push({from:f,to:t}))}
 function vCfg(){
   const opt=(v,l,c)=>`<option value="${v}" ${v===c?'selected':''}>${l}</option>`;
@@ -166,8 +176,13 @@ function vCfg(){
   <input type="number" min="0" inputmode="numeric" aria-label="Precio" placeholder="Precio $" value="${s.price||''}" onchange="upd(()=>cfg.services[${i}].price=Math.max(0,+this.value||0))"></div>
   <div class="row"><label class="sw"><input type="checkbox" ${s.on?'checked':''} onchange="upd(()=>cfg.services[${i}].on=this.checked)"> Habilitado</label><button class="x" onclick="if(confirm('¿Eliminar este servicio?'))upd(()=>cfg.services.splice(${i},1))">Eliminar</button></div></div>`});
   h+=`<button class="go" onclick="upd(()=>cfg.services.push({id:'s'+Date.now().toString(36),name:'Nuevo servicio',dur:30,price:0,pt:'fijo',on:true}))">Agregar servicio</button><h2>Días y horarios de trabajo</h2>`;
-  [1,2,3,4,5,6,0].forEach(d=>{const w=cfg.week[d],f=(k,l)=>`<label>${l}<input type="time" value="${w[k]||''}" onchange="upd(()=>cfg.week[${d}].${k}=this.value)"></label>`;
-    h+=`<div class="card col"><label class="sw"><input type="checkbox" ${w.on?'checked':''} onchange="upd(()=>cfg.week[${d}].on=this.checked)"> <b>${DN[d]}</b></label>${w.on?`<div class="row">${f('from','Desde')}${f('to','Hasta')}</div><div class="row">${f('b1','Descanso desde')}${f('b2','Descanso hasta')}</div>`:''}</div>`});
+  const O=[1,2,3,4,5,6,0],tf=(k,l)=>`<label>${l}<input type="time" value="${cw[k]}" onchange="cw.${k}=this.value"></label>`;
+  h+=`<p class="sm">1. Tildá los días (o usá un atajo). 2. Elegí el horario. 3. Tocá “Aplicar”.</p><div class="chips">${O.map(d=>`<button class="chip ${selD.includes(d)?'on':''}" onclick="togD(${d})">${DN[d].slice(0,3)}<small>${cfg.week[d].on?'Abierto':'Cerrado'}</small></button>`).join('')}</div>
+  <div class="chips" style="margin-top:8px"><button class="x" onclick="rangeD(1,5)">Lun a Vie</button><button class="x" onclick="rangeD(1,6)">Lun a Sáb</button><button class="x" onclick="rangeD(2,6)">Mar a Sáb</button></div>
+  <div class="card col" style="margin-top:12px"><div class="row">${tf('from','Abre')}${tf('to','Cierra')}</div><div class="row">${tf('b1','Descanso desde (opcional)')}${tf('b2','Descanso hasta')}</div>
+  <div class="row"><button class="go" style="margin:0" onclick="applyD(true)">Aplicar a los días tildados</button><button class="x" onclick="applyD(false)">Cerrar los días tildados</button></div></div>
+  <h3 class="day">Horarios actuales</h3>`;
+  O.forEach(d=>{const w=cfg.week[d];h+=`<div class="card"><b>${DN[d]}</b><span class="sm">${w.on?w.from+' a '+w.to+(w.b1&&w.b2?', descanso '+w.b1+' a '+w.b2:''):'Cerrado'}</span></div>`});
   h+=`<h2>Cierres, vacaciones y feriados</h2><p class="sm">Para cerrar una semana, elegí del lunes al sábado. Los turnos ya reservados en esas fechas no se cancelan solos.</p><div class="row"><label>Desde<input type="date" id="cf"></label><label>Hasta<input type="date" id="ct"></label></div><button class="go" onclick="addClose()">Cerrar esas fechas</button>`;
   cfg.closures.forEach((c,i)=>{h+=`<div class="card"><span>${esc(fdate(c.from))}${c.to!==c.from?' al '+esc(fdate(c.to)):''}</span><button class="x" onclick="upd(()=>cfg.closures.splice(${i},1))">Quitar</button></div>`});
   return h;
