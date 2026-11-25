@@ -33,8 +33,9 @@ h2 i{font-style:normal;display:grid;place-items:center;width:28px;height:28px;bo
 .grid .chip{min-height:48px}
 label{display:block;font-size:14px;font-weight:600;color:var(--mut);margin-bottom:12px}
 input{width:100%;margin-top:5px;background:var(--surf);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:10px 12px;font:400 16px Archivo,system-ui,sans-serif;min-height:48px}
-input:focus{border-color:var(--blue)}
-button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+input:focus,textarea:focus{border-color:var(--blue)}
+textarea{display:block;width:100%;margin-top:5px;background:var(--surf);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:10px 12px;font:400 16px Archivo,system-ui,sans-serif;min-height:84px;resize:vertical}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .go{width:100%;border:0;background:var(--acc);color:var(--on);font:700 17px Archivo,system-ui,sans-serif;border-radius:10px;padding:15px;cursor:pointer;margin-top:6px}
 .go:disabled{opacity:.5}
 .card{background:var(--surf);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -90,7 +91,7 @@ const CFG={apiKey:'AIzaSyC8L0kuqtRrJbNE6KOY8BkzXB9BUhvq6g0',authDomain:'gestion-
 let seen=null,alertMsg='';
 let selD=[],cw={from:'09:00',to:'19:00',b1:'',b2:''};
 let FB=null,auth=null,unsubB=null,db=null,uid=null,admin=false,ready=false,tab='res',slots={},books=[],msg='',done=null,busy=false;
-let st={s:null,date:null,time:null,nm:'',ph:''};
+let st={s:null,date:null,time:null,nm:'',ph:'',ob:''};
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const hm=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
 const key=(d,m)=>d+'_'+hm(m).replace(':','');
@@ -112,7 +113,7 @@ function free(date,m,dur){
   return true;
 }
 function setTab(t){tab=t;done=null;render()}
-function pick(k,v){st[k]=st[k]===v?null:v;if(k!=='time')st.time=null;msg='';render()}
+function pick(k,v){st[k]=st[k]===v?null:v;if(k!=='time')st.time=null;msg='';render();if(st[k]!==null){const hs=document.querySelectorAll('#main h2'),l=hs[hs.length-1];if(l)l.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}}
 async function book(){
   const sv=svc();if(!sv)return;const dur=sv.dur;
   if(!st.nm.trim()||!st.ph.trim()){msg='Completá tu nombre y tu teléfono.';return render()}
@@ -120,13 +121,13 @@ async function book(){
   if(!free(st.date,st.time,dur)){msg='Ese horario se acaba de ocupar. Elegí otro.';st.time=null;return render()}
   busy=true;msg='';render();
   const id='b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const b={id,name:st.nm.trim(),phone:st.ph.trim(),service:sv.name,date:st.date,time:hm(st.time),dur,at:Date.now()};
+  const b={id,name:st.nm.trim(),phone:st.ph.trim(),service:sv.name,date:st.date,time:hm(st.time),dur,at:Date.now(),...(st.ob.trim()?{obs:st.ob.trim().slice(0,300)}:{})};
   try{
     const bt=FB.writeBatch(db);
     for(let t=st.time;t<st.time+dur;t+=STEP)bt.set(FB.doc(db,'slots',key(st.date,t)),{b:id,d:st.date});
     bt.set(FB.doc(db,'bookings',id),b);
     await bt.commit();
-    done=b;st={s:0,date:null,time:null,nm:'',ph:''};
+    done=b;st={s:0,date:null,time:null,nm:'',ph:'',ob:''};
   }catch(e){msg='No se pudo guardar. Puede que el horario se haya ocupado: elegí otro e intentá de nuevo.'}
   busy=false;render();
 }
@@ -176,18 +177,28 @@ async function descargar(){
 }
 const consultaChip=()=>WA&&cfg.consulta?`<a class="chip" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, tengo una consulta.')}">Consulta<small>Por WhatsApp</small></a>`:'';
 function vRes(){
-  if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.')}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:none;border:2px solid var(--ink);color:var(--ink);margin-bottom:8px" onclick="descargar()">Descargar comprobante</button><button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button></div>`;
+  if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.'+(done.obs?' Aclaración: '+done.obs:''))}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:none;border:2px solid var(--ink);color:var(--ink);margin-bottom:8px" onclick="descargar()">Descargar comprobante</button><button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button></div>`;
   const A=act();if(!A.length)return '<p class="note">Por ahora no hay servicios disponibles.'+(consultaChip()?' Podés consultarnos por WhatsApp.':'')+'</p>'+(consultaChip()?'<div class="chips" style="margin-top:12px">'+consultaChip()+'</div>':'');const sv=svc(),dur=sv?sv.dur:30,D=days();
-  let h=`<h2><i>1</i>Servicio</h2><div class="chips">${A.map(s=>`<button class="chip ${s.id===st.s?'on':''}" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}${consultaChip()}</div>`;
-  if(sv)h+=`<h2><i>2</i>Día</h2><div class="chips">${D.map(d=>{const x=new Date(d+'T12:00:00');return `<button class="chip ${d===st.date?'on':''}" onclick="pick('date','${d}')"><span style="text-transform:capitalize">${esc(x.toLocaleDateString('es-AR',{weekday:'long'}))}</span><small>${x.getDate()}/${x.getMonth()+1}</small></button>`}).join('')}</div>`;
+  const sel=(k,v,l,sm)=>`<div class="chips"><button class="chip on" onclick="pick('${k}','${esc(v)}')">${l}<small>${sm}</small><small style="text-decoration:underline">Cambiar</small></button></div>`;
+  let h=`<h2><i>1</i>Servicio</h2>`+(sv?sel('s',sv.id,esc(sv.name),sv.dur+' min'+(ptxt(sv)?', '+ptxt(sv):'')):`<div class="chips">${A.map(s=>`<button class="chip" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}${consultaChip()}</div>`);
+  if(sv){
+    h+=`<h2><i>2</i>Día</h2>`;
+    if(st.date){const x=new Date(st.date+'T12:00:00');h+=sel('date',st.date,`<span style="text-transform:capitalize">${esc(x.toLocaleDateString('es-AR',{weekday:'long'}))}</span>`,x.getDate()+'/'+(x.getMonth()+1))}
+    else h+=`<div class="chips">${D.map(d=>{const x=new Date(d+'T12:00:00');return `<button class="chip" onclick="pick('date','${d}')"><span style="text-transform:capitalize">${esc(x.toLocaleDateString('es-AR',{weekday:'long'}))}</span><small>${x.getDate()}/${x.getMonth()+1}</small></button>`}).join('')}</div>`;
+  }
   if(sv&&st.date){
-    h+=`<h2><i>3</i>Horario</h2><div class="grid">`;
-    const sc=sch(st.date);for(let m=sc?mins(sc.from):0;sc&&m<mins(sc.to);m+=STEP)if(!brk(sc,m))h+=`<button class="chip ${m===st.time?'on':''}" ${free(st.date,m,dur)?'':'disabled'} onclick="pick('time',${m})">${hm(m)}</button>`;
-    h+=`</div>`;
+    h+=`<h2><i>3</i>Horario</h2>`;
+    if(st.time!==null)h+=sel('time',st.time,hm(st.time),'');
+    else{
+      h+=`<div class="grid">`;
+      const sc=sch(st.date);for(let m=sc?mins(sc.from):0;sc&&m<mins(sc.to);m+=STEP)if(!brk(sc,m))h+=`<button class="chip" ${free(st.date,m,dur)?'':'disabled'} onclick="pick('time',${m})">${hm(m)}</button>`;
+      h+=`</div>`;
+    }
   }
   if(sv&&st.date&&st.time!==null){
     h+=`<h2><i>4</i>Tus datos</h2><label>Nombre<input value="${esc(st.nm)}" oninput="st.nm=this.value" autocomplete="name"></label>
     <label>Teléfono<input type="tel" inputmode="numeric" maxlength="15" placeholder="Solo números, sin espacios" value="${esc(st.ph)}" oninput="this.value=this.value.replace(/[^0-9]/g,'');st.ph=this.value" autocomplete="tel"></label>
+    <label>Aclaración u observación (opcional)<textarea rows="3" maxlength="300" placeholder="Si querés contarnos algo, escribilo acá" oninput="st.ob=this.value">${esc(st.ob)}</textarea></label>
     <p class="err">${esc(msg)}</p><button class="go" ${busy?'disabled':''} onclick="book()">${busy?'Guardando…':'Confirmar turno'}</button>`;
   }else if(msg)h+=`<p class="err">${esc(msg)}</p>`;
   return h;
@@ -200,7 +211,7 @@ function vAdm(){
   let h='<p class="sm">Tocá “Recordar” y se abre WhatsApp con el mensaje listo para enviar.</p>',cur='';
   L.forEach(b=>{
     if(b.date!==cur){cur=b.date;h+=`<h3 class="day">${esc(fdate(b.date))}${b.date===today?' (hoy)':''}</h3>`}
-    h+=`<div class="card"><div><b>${esc(b.time)} ${esc(b.name)}</b><span class="sm">${esc(b.service)}, ${b.dur} min, <a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a></span></div><div class="row" style="flex:none"><a class="wa" href="${waLink(b)}" target="_blank" rel="noopener">Recordar</a><button class="x" onclick="cancel('${esc(b.id)}')">Cancelar</button></div></div>`;
+    h+=`<div class="card"><div><b>${esc(b.time)} ${esc(b.name)}</b><span class="sm">${esc(b.service)}, ${b.dur} min, <a href="tel:${esc(b.phone)}" style="color:var(--blue)">${esc(b.phone)}</a></span>${b.obs?`<span class="sm" style="display:block">Obs.: ${esc(b.obs)}</span>`:''}</div><div class="row" style="flex:none"><a class="wa" href="${waLink(b)}" target="_blank" rel="noopener">Recordar</a><button class="x" onclick="cancel('${esc(b.id)}')">Cancelar</button></div></div>`;
   });
   return h;
 }
