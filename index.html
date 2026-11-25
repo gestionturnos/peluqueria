@@ -134,7 +134,7 @@ async function book(){
     bt.set(FB.doc(db,'bookings',id),b);
     await bt.commit();
     done=b;st={s:0,date:null,time:null,nm:'',ph:'',ob:''};
-  }catch(e){msg='No se pudo guardar. Puede que el horario se haya ocupado: elegí otro e intentá de nuevo.'}
+  }catch(e){console.error('book error',e);msg='No se pudo guardar. Puede que el horario se haya ocupado: elegí otro e intentá de nuevo.'+(e&&e.code?' ['+e.code+']':'')}
   busy=false;render();
 }
 async function cancel(id){
@@ -204,7 +204,7 @@ async function descargar(){
 }
 const consultaChip=()=>WA&&cfg.consulta?`<a class="chip" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, tengo una consulta.')}">Consulta<small>Por WhatsApp</small></a>`:'';
 function vRes(){
-  if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.'+(done.obs?' Aclaración: '+done.obs:''))}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:none;border:2px solid var(--ink);color:var(--ink);margin-bottom:8px" onclick="descargar()">Descargar comprobante</button><button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button>${done.uid?`<button class="go" style="background:none;border:2px solid #d7263d;color:#d7263d;margin-top:8px" onclick="cancelDone()">Cancelar turno</button>`:''}</div>`;
+  if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.'+(done.obs?' Aclaración: '+done.obs:''))}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:none;border:2px solid var(--ink);color:var(--ink);margin-bottom:8px" onclick="descargar()">Descargar comprobante</button><button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button></div>`;
   const A=act();if(!A.length)return '<p class="note">Por ahora no hay servicios disponibles.'+(consultaChip()?' Podés consultarnos por WhatsApp.':'')+'</p>'+(consultaChip()?'<div class="chips" style="margin-top:12px">'+consultaChip()+'</div>':'');const sv=svc(),dur=sv?sv.dur:30,D=days();
   const sel=(k,v,l,sm)=>`<div class="chips"><button class="chip on" onclick="pick('${k}','${esc(v)}')">${l}<small>${sm}</small><small style="text-decoration:underline">Cambiar</small></button></div>`;
   let h=`<h2><i>1</i>Servicio</h2>`+(sv?sel('s',sv.id,esc(sv.name),sv.dur+' min'+(ptxt(sv)?', '+ptxt(sv):'')):`<div class="chips">${A.map(s=>`<button class="chip" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}${consultaChip()}</div>`);
@@ -253,6 +253,7 @@ function applyD(on){
   upd(()=>{selD.forEach(d=>{cfg.week[d]=on?{on:true,from:cw.from,to:cw.to,b1:cw.b1,b2:cw.b2}:{...cfg.week[d],on:false}});selD=[]});
 }
 function addClose(){const f=$('#cf').value,t=$('#ct').value||f;if(!f||t<f)return alert('Elegí fechas válidas.');upd(()=>cfg.closures.push({from:f,to:t}))}
+function setT(k,w){const [h,m]=w.querySelectorAll('select');cw[k]=h.value?h.value+':'+m.value:''}
 function vCfg(){
   const opt=(v,l,c)=>`<option value="${v}" ${v===c?'selected':''}>${l}</option>`;
   let h='<h2>Servicios y precios</h2>';
@@ -263,7 +264,7 @@ function vCfg(){
   <div class="row"><label class="sw"><input type="checkbox" ${s.on?'checked':''} onchange="upd(()=>cfg.services[${i}].on=this.checked)"> Habilitado</label><button class="x" onclick="if(confirm('¿Eliminar este servicio?'))upd(()=>cfg.services.splice(${i},1))">Eliminar</button></div></div>`});
   h+=`<div class="card col"><div class="row"><b>Consulta por WhatsApp</b></div><p class="sm" style="margin:0">Muestra la opción “Consulta” junto a los servicios y lleva al cliente a tu WhatsApp.</p><div class="row"><label class="sw"><input type="checkbox" ${cfg.consulta?'checked':''} onchange="upd(()=>cfg.consulta=this.checked)"> Habilitado</label></div></div>`;
   h+=`<button class="go" onclick="upd(()=>cfg.services.push({id:'s'+Date.now().toString(36),name:'Nuevo servicio',dur:30,price:0,pt:'fijo',on:true}))">Agregar servicio</button><h2>Días y horarios de trabajo</h2>`;
-  const O=[1,2,3,4,5,6,0],tf=(k,l)=>`<label>${l}<input type="time" value="${cw[k]}" onchange="cw.${k}=this.value"></label>`;
+  const O=[1,2,3,4,5,6,0],tf=(k,l)=>{const v=cw[k]||'',H=v.slice(0,2),M=v.slice(3,5)||'00',o=(x,c)=>`<option value="${x}" ${x===c?'selected':''}>${x||'--'}</option>`,hs=(k==='b1'||k==='b2'?['']:[]).concat(Array.from({length:24},(_,i)=>String(i).padStart(2,'0')));return `<label>${l}<span class="row" style="flex-wrap:nowrap;gap:6px"><select aria-label="Hora" onchange="setT('${k}',this.parentNode)">${hs.map(x=>o(x,H)).join('')}</select><select aria-label="Minutos" onchange="setT('${k}',this.parentNode)">${['00','30'].map(x=>o(x,M)).join('')}</select></span></label>`};
   h+=`<p class="sm">1. Tildá los días (o usá un atajo). 2. Elegí el horario. 3. Tocá “Aplicar”.</p><div class="chips">${O.map(d=>`<button class="chip ${selD.includes(d)?'on':''}" onclick="togD(${d})">${DN[d]}<small>${cfg.week[d].on?'Abierto':'Cerrado'}</small></button>`).join('')}</div>
   <div class="chips" style="margin-top:8px"><button class="x" onclick="rangeD(1,5)">Lun a Vie</button><button class="x" onclick="rangeD(1,6)">Lun a Sáb</button><button class="x" onclick="rangeD(2,6)">Mar a Sáb</button></div>
   <div class="card col" style="margin-top:12px"><div class="row">${tf('from','Abre')}${tf('to','Cierra')}</div><div class="row">${tf('b1','Descanso desde (opcional)')}${tf('b2','Descanso hasta')}</div>
@@ -279,7 +280,7 @@ async function login(){const e=$('#em').value.trim(),p=$('#pw').value;try{await 
 function render(){
   const nav=$('#nav');nav.hidden=!admin;
   $('#own').hidden=!db||admin;
-  $('#foot').innerHTML=admin?'<button class="x" style="color:var(--mut)" onclick="FB.signOut(auth)">Cerrar sesión</button>':'';
+  $('#foot').innerHTML=admin?'<button class="x" style="color:var(--mut)" onclick="FB.signOut(auth).then(()=>location.reload(),()=>location.reload())">Cerrar sesión</button>':'';
   if(admin)nav.innerHTML=`<button role="tab" aria-selected="${tab==='res'}" onclick="setTab('res')">Reservar</button><button role="tab" aria-selected="${tab==='adm'}" onclick="setTab('adm')">Agenda (${books.filter(b=>b.date>=iso(new Date())).length})</button><button role="tab" aria-selected="${tab==='cfg'}" onclick="setTab('cfg')">Ajustes</button>`;
   const m=$('#main');
   if(!ready){m.innerHTML='<p class="sm">Cargando…</p>';return}
