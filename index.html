@@ -24,6 +24,7 @@ h2 i{font-style:normal;display:grid;place-items:center;width:28px;height:28px;bo
 .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 .chip{border:2px solid var(--line);background:var(--surf);color:var(--ink);font:600 16px Archivo,system-ui,sans-serif;border-radius:10px;padding:9px 14px;cursor:pointer;min-height:58px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;transition:border-color .15s,background .15s}
 .chip small{display:block;color:var(--mut);font-weight:400;font-size:12px}
+.chip{text-decoration:none}
 .chip:hover:not(:disabled){border-color:var(--blue)}
 .chip.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .chip.on small{color:var(--bg);opacity:.8}
@@ -57,12 +58,18 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
 .row select{flex:1 1 110px}
 .sw{display:flex;align-items:center;gap:8px;color:var(--ink);margin:0}
 .sw input[type=checkbox]{width:22px;height:22px;min-height:0;margin:0;flex:none}
+.wrap{position:relative}
+h1{padding-right:40px}
+.own{position:absolute;top:8px;right:6px;width:44px;height:44px;display:grid;place-items:center;background:none;border:0;border-radius:50%;color:var(--mut);opacity:.4;cursor:pointer;padding:0}
+.own:hover,.own:focus-visible{opacity:1}
+.own svg{width:20px;height:20px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div class="pole"></div>
 <div class="wrap">
+<button id="own" class="own" hidden aria-label="Acceso dueño" title="Acceso dueño" onclick="setTab('login')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></button>
 <h1>Reservá tu turno</h1><p class="lead">Elegí servicio, día y horario. Te lleva un minuto.</p><nav id="nav" hidden></nav>
 <main id="main"><p class="sm">Cargando…</p></main>
 <p id="foot" style="text-align:center;margin-top:40px"></p>
@@ -70,11 +77,12 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const DEF={services:[{id:'s1',name:'Corte',dur:30,price:0,pt:'fijo',on:true},{id:'s2',name:'Barba',dur:30,price:0,pt:'fijo',on:true},{id:'s3',name:'Otro',dur:60,price:0,pt:'consultar',on:true}],week:{0:{on:false,from:'09:00',to:'19:00',b1:'',b2:''},1:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},2:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},3:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},4:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},5:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},6:{on:true,from:'09:00',to:'19:00',b1:'',b2:''}},closures:[]};
+const DEF={services:[{id:'s1',name:'Corte',dur:30,price:0,pt:'fijo',on:true},{id:'s2',name:'Barba',dur:30,price:0,pt:'fijo',on:true},{id:'s3',name:'Otro',dur:60,price:0,pt:'consultar',on:true}],week:{0:{on:false,from:'09:00',to:'19:00',b1:'',b2:''},1:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},2:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},3:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},4:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},5:{on:true,from:'09:00',to:'19:00',b1:'',b2:''},6:{on:true,from:'09:00',to:'19:00',b1:'',b2:''}},closures:[],consulta:true};
 let cfg=JSON.parse(JSON.stringify(DEF));
 const DN=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const STEP=30;
 const WA='5492262629023';
+const NEGOCIO='Peluquería'; // nombre que aparece en el comprobante
 // ===== CONFIGURACIÓN: pegá acá los datos de tu proyecto de Firebase y tu email de dueño =====
 const OWNER='tu.app.de.turnos@gmail.com';
 const CFG={apiKey:'AIzaSyC8L0kuqtRrJbNE6KOY8BkzXB9BUhvq6g0',authDomain:'gestion-de-turnos-755f8.firebaseapp.com',projectId:'gestion-de-turnos-755f8',appId:'1:955811393083:web:aeebf35a69882f70cf761e'};
@@ -131,10 +139,46 @@ async function cancel(id){
     await bt.commit();
   }catch(e){alert('No se pudo cancelar. Probá de nuevo.')}
 }
+async function descargar(){
+  const b=done;if(!b)return;
+  try{await document.fonts.load('800 40px Archivo');await document.fonts.load('400 20px Archivo')}catch(e){}
+  const W=720,H=900,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const F='Archivo,system-ui,-apple-system,"Segoe UI",sans-serif';
+  const fit=(t,w)=>{if(g.measureText(t).width<=w)return t;while(t.length>1&&g.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…'};
+  g.fillStyle='#f4f6fa';g.fillRect(0,0,W,H);
+  g.fillStyle='#fff';g.fillRect(40,40,640,820);
+  g.save();g.beginPath();g.rect(42,42,636,30);g.clip();
+  const col=['#d7263d','#fff','#1b4f9c','#fff'];
+  for(let i=-2;i<24;i++){const x0=42+i*36;g.fillStyle=col[((i%4)+4)%4];g.beginPath();g.moveTo(x0,72);g.lineTo(x0+36,72);g.lineTo(x0+66,42);g.lineTo(x0+30,42);g.closePath();g.fill()}
+  g.restore();
+  g.strokeStyle='#14213d';g.lineWidth=4;g.strokeRect(40,40,640,820);
+  g.textAlign='center';g.fillStyle='#55627d';g.font='600 20px '+F;g.fillText('COMPROBANTE DE TURNO',W/2,128);
+  g.fillStyle='#14213d';g.font='800 46px '+F;g.fillText(fit(NEGOCIO,560),W/2,184);
+  g.fillStyle='#d7263d';g.font='700 28px '+F;g.fillText('¡Turno confirmado!',W/2,232);
+  g.strokeStyle='#d5dbe8';g.lineWidth=2;g.beginPath();g.moveTo(90,262);g.lineTo(630,262);g.stroke();
+  const rows=[['SERVICIO',b.service],['FECHA',fdate(b.date)],['HORARIO',b.time+' hs'],['A NOMBRE DE',b.name],['CÓDIGO',b.id.slice(-6).toUpperCase()]];
+  let y=316;
+  for(const [k,v] of rows){
+    g.fillStyle='#55627d';g.font='600 18px '+F;g.fillText(k,W/2,y);
+    g.fillStyle='#14213d';g.font='700 32px '+F;g.fillText(fit(String(v),540),W/2,y+40);
+    y+=100;
+  }
+  g.fillStyle='#55627d';g.font='400 19px '+F;
+  g.fillText('Guardá este comprobante. Si no podés asistir,',W/2,y+10);
+  g.fillText('avisanos con tiempo por WhatsApp.',W/2,y+36);
+  c.toBlob(bl=>{
+    if(!bl)return;
+    const u=URL.createObjectURL(bl),a=document.createElement('a');
+    a.href=u;a.download='turno-'+b.date+'-'+b.time.replace(':','')+'.png';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),4000);
+  },'image/png');
+}
+const consultaChip=()=>WA&&cfg.consulta?`<a class="chip" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, tengo una consulta.')}">Consulta<small>Por WhatsApp</small></a>`:'';
 function vRes(){
-  if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.')}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button></div>`;
-  const A=act();if(!A.length)return '<p class="note">Por ahora no hay servicios disponibles. Consultá por WhatsApp.</p>';const sv=svc(),dur=sv?sv.dur:30,D=days();
-  let h=`<h2><i>1</i>Servicio</h2><div class="chips">${A.map(s=>`<button class="chip ${s.id===st.s?'on':''}" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}</div>`;
+  if(done)return `<div class="ok"><div class="pole"></div><h2>¡Turno confirmado!</h2><p><b>${esc(done.service)}</b><br>${esc(fdate(done.date))}, ${esc(done.time)} hs<br>a nombre de ${esc(done.name)}</p>${WA?`<a class="go" style="display:block;text-decoration:none;margin-bottom:8px" target="_blank" rel="noopener" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, reservé un turno de '+done.service+' para el '+fdate(done.date)+' a las '+done.time+' hs. Soy '+done.name+'.')}">Avisar a la peluquería por WhatsApp</a>`:''}<button class="go" style="background:none;border:2px solid var(--ink);color:var(--ink);margin-bottom:8px" onclick="descargar()">Descargar comprobante</button><button class="go" style="background:var(--ink);color:var(--bg)" onclick="done=null;render()">Reservar otro turno</button></div>`;
+  const A=act();if(!A.length)return '<p class="note">Por ahora no hay servicios disponibles.'+(consultaChip()?' Podés consultarnos por WhatsApp.':'')+'</p>'+(consultaChip()?'<div class="chips" style="margin-top:12px">'+consultaChip()+'</div>':'');const sv=svc(),dur=sv?sv.dur:30,D=days();
+  let h=`<h2><i>1</i>Servicio</h2><div class="chips">${A.map(s=>`<button class="chip ${s.id===st.s?'on':''}" onclick="pick('s','${esc(s.id)}')">${esc(s.name)}<small>${s.dur} min${ptxt(s)?', '+ptxt(s):''}</small></button>`).join('')}${consultaChip()}</div>`;
   if(sv)h+=`<h2><i>2</i>Día</h2><div class="chips">${D.map(d=>{const x=new Date(d+'T12:00:00');return `<button class="chip ${d===st.date?'on':''}" onclick="pick('date','${d}')"><span style="text-transform:capitalize">${esc(x.toLocaleDateString('es-AR',{weekday:'long'}))}</span><small>${x.getDate()}/${x.getMonth()+1}</small></button>`}).join('')}</div>`;
   if(sv&&st.date){
     h+=`<h2><i>3</i>Horario</h2><div class="grid">`;
@@ -179,6 +223,7 @@ function vCfg(){
   <select aria-label="Tipo de precio" onchange="upd(()=>cfg.services[${i}].pt=this.value)">${opt('fijo','Precio fijo',s.pt)}${opt('desde','Desde',s.pt)}${opt('consultar','A consultar',s.pt)}</select>
   <input type="number" min="0" inputmode="numeric" aria-label="Precio" placeholder="Precio $" value="${s.price||''}" onchange="upd(()=>cfg.services[${i}].price=Math.max(0,+this.value||0))"></div>
   <div class="row"><label class="sw"><input type="checkbox" ${s.on?'checked':''} onchange="upd(()=>cfg.services[${i}].on=this.checked)"> Habilitado</label><button class="x" onclick="if(confirm('¿Eliminar este servicio?'))upd(()=>cfg.services.splice(${i},1))">Eliminar</button></div></div>`});
+  h+=`<div class="card col"><div class="row"><b>Consulta por WhatsApp</b></div><p class="sm" style="margin:0">Muestra la opción “Consulta” junto a los servicios y lleva al cliente a tu WhatsApp.</p><div class="row"><label class="sw"><input type="checkbox" ${cfg.consulta?'checked':''} onchange="upd(()=>cfg.consulta=this.checked)"> Habilitado</label></div></div>`;
   h+=`<button class="go" onclick="upd(()=>cfg.services.push({id:'s'+Date.now().toString(36),name:'Nuevo servicio',dur:30,price:0,pt:'fijo',on:true}))">Agregar servicio</button><h2>Días y horarios de trabajo</h2>`;
   const O=[1,2,3,4,5,6,0],tf=(k,l)=>`<label>${l}<input type="time" value="${cw[k]}" onchange="cw.${k}=this.value"></label>`;
   h+=`<p class="sm">1. Tildá los días (o usá un atajo). 2. Elegí el horario. 3. Tocá “Aplicar”.</p><div class="chips">${O.map(d=>`<button class="chip ${selD.includes(d)?'on':''}" onclick="togD(${d})">${DN[d]}<small>${cfg.week[d].on?'Abierto':'Cerrado'}</small></button>`).join('')}</div>
@@ -195,7 +240,8 @@ function vLogin(){return `<h2>Acceso del dueño</h2><label>Email<input id="em" t
 async function login(){const e=$('#em').value.trim(),p=$('#pw').value;try{await FB.signInWithEmailAndPassword(auth,e,p);tab='res';msg=''}catch(x){msg='Email o contraseña incorrectos.'}render()}
 function render(){
   const nav=$('#nav');nav.hidden=!admin;
-  $('#foot').innerHTML=!db?'':admin?'<button class="x" style="color:var(--mut)" onclick="FB.signOut(auth)">Cerrar sesión</button>':'<button class="x" style="color:var(--mut)" onclick="setTab(\'login\')">Acceso dueño</button>';
+  $('#own').hidden=!db||admin;
+  $('#foot').innerHTML=admin?'<button class="x" style="color:var(--mut)" onclick="FB.signOut(auth)">Cerrar sesión</button>':'';
   if(admin)nav.innerHTML=`<button role="tab" aria-selected="${tab==='res'}" onclick="setTab('res')">Reservar</button><button role="tab" aria-selected="${tab==='adm'}" onclick="setTab('adm')">Agenda (${books.filter(b=>b.date>=iso(new Date())).length})</button><button role="tab" aria-selected="${tab==='cfg'}" onclick="setTab('cfg')">Ajustes</button>`;
   const m=$('#main');
   if(!ready){m.innerHTML='<p class="sm">Cargando…</p>';return}
@@ -211,7 +257,7 @@ function render(){
     FB={...S,...T};
     const app=A.initializeApp(CFG);db=S.getFirestore(app);auth=T.getAuth(app);
     FB.onSnapshot(FB.query(FB.collection(db,'slots'),FB.where('d','>=',iso(new Date()))),q=>{slots={};q.docs.forEach(d=>slots[d.id]=1);render()},()=>{});
-    FB.onSnapshot(FB.doc(db,'config','main'),sn=>{if(sn.exists()){const c=sn.data()||{};cfg={services:c.services||DEF.services,week:c.week||DEF.week,closures:c.closures||[]}}render()},()=>{});
+    FB.onSnapshot(FB.doc(db,'config','main'),sn=>{if(sn.exists()){const c=sn.data()||{};cfg={services:c.services||DEF.services,week:c.week||DEF.week,closures:c.closures||[],consulta:c.consulta!==false}}render()},()=>{});
     FB.onAuthStateChanged(auth,u=>{
       admin=!!u&&u.email===OWNER;
       if(unsubB){unsubB();unsubB=null}
